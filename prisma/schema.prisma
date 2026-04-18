@@ -1,0 +1,183 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ── Users & Auth ──────────────────────────────────────
+
+enum Role {
+  OWNER
+  ADMIN
+  DISTRIBUTOR
+  BUYER
+}
+
+model User {
+  id             String    @id @default(cuid())
+  email          String    @unique
+  password       String?
+  name           String
+  image          String?
+  role           Role      @default(BUYER)
+  phone          String?
+  emailVerified  DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  accounts       Account[]
+  distributor    Distributor?
+  orders         Order[]
+  addresses      Address[]
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+// ── Distributors ──────────────────────────────────────
+
+model Distributor {
+  id            String   @id @default(cuid())
+  companyName   String
+  contactName   String
+  contactEmail  String
+  phone         String?
+  website       String?
+  description   String?
+  logo          String?
+  isApproved    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  userId        String   @unique
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  products      Product[]
+  orderItems    OrderItem[]
+}
+
+// ── Products ──────────────────────────────────────────
+
+model Product {
+  id            String   @id @default(cuid())
+  name          String
+  slug          String   @unique
+  description   String?
+  price         Float
+  costPrice     Float
+  sku           String   @unique
+  stock         Int      @default(0)
+  images        String[] @default([])
+  isActive      Boolean  @default(true)
+  weight        Float?
+  length        Float?
+  width         Float?
+  height        Float?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  distributorId String
+  distributor   Distributor @relation(fields: [distributorId], references: [id], onDelete: Cascade)
+
+  categoryId    String?
+  category      Category?   @relation(fields: [categoryId], references: [id])
+
+  orderItems    OrderItem[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  image     String?
+  createdAt DateTime @default(now())
+
+  products  Product[]
+}
+
+// ── Orders ────────────────────────────────────────────
+
+enum OrderStatus {
+  PENDING
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  orderNumber     String      @unique
+  status          OrderStatus @default(PENDING)
+  subtotal        Float
+  shippingCost    Float       @default(0)
+  tax             Float       @default(0)
+  total           Float
+  paymentId       String?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  userId          String
+  user            User        @relation(fields: [userId], references: [id])
+
+  shippingAddressId String
+  shippingAddress   Address   @relation(fields: [shippingAddressId], references: [id])
+
+  items           OrderItem[]
+}
+
+model OrderItem {
+  id            String      @id @default(cuid())
+  quantity      Int
+  unitPrice     Float
+  totalPrice    Float
+  status        OrderStatus @default(PENDING)
+  trackingNumber String?
+  trackingUrl    String?
+
+  orderId       String
+  order         Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId     String
+  product       Product     @relation(fields: [productId], references: [id])
+
+  distributorId String
+  distributor   Distributor @relation(fields: [distributorId], references: [id])
+}
+
+// ── Addresses ─────────────────────────────────────────
+
+model Address {
+  id        String  @id @default(cuid())
+  label     String? // "Home", "Office", etc.
+  street    String
+  city      String
+  state     String
+  zip       String
+  country   String  @default("US")
+
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  orders    Order[]
+}
