@@ -3,6 +3,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { PAYPAL_BASE, getPayPalAccessToken } from "@/lib/paypal";
+import { sendOrderConfirmation } from "@/lib/email";
 
 // POST /api/checkout/capture — Capture PayPal payment and create order
 export async function POST(request) {
@@ -115,6 +116,25 @@ export async function POST(request) {
     }
 
     console.log("Order created:", orderNumber);
+
+    // Send order confirmation email (non-blocking — failure doesn't roll back order)
+    const shippingAddress = await prisma.address.findUnique({
+      where: { id: shippingAddressId },
+    });
+    const emailItems = orderItems.map((oi) => {
+      const product = products.find((p) => p.id === oi.productId);
+      return { name: product.name, quantity: oi.quantity, unitPrice: oi.unitPrice };
+    });
+    sendOrderConfirmation({
+      to: session.user.email,
+      orderNumber: order.orderNumber,
+      items: emailItems,
+      subtotal,
+      tax,
+      shippingCost,
+      total,
+      shippingAddress,
+    }).catch((e) => console.error("Order confirmation email failed:", e));
 
     return NextResponse.json({ success: true, orderNumber: order.orderNumber });
   } catch (error) {
