@@ -52,16 +52,7 @@ export async function GET(request) {
   } catch (error) {
     console.error("Products fetch error:", error);
     return NextResponse.json(
-      {
-        error: "Failed to fetch products",
-        debug: {
-          message: error?.message,
-          name: error?.name,
-          code: error?.code,
-          hasDbUrl: !!process.env.DATABASE_URL,
-          dbUrlStart: process.env.DATABASE_URL?.slice(0, 40),
-        },
-      },
+      { error: "Failed to fetch products" },
       { status: 500 }
     );
   }
